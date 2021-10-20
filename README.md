@@ -1,3 +1,6 @@
+This is a fork of the 4.3.4 version of Buffet. It has additionally been modified so that the sorting is inverted; It will use the worst food and drink first, instead of the best.
+
+#Original README.md
 Buffet is a simple water/food managing addon inspired by
 [BaudConsumables](http://wow.curse.com/downloads/details/5827/) and
 [Munchies](http://www.wowinterface.com/downloads/info8174-Munchies.html).

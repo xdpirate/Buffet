@@ -6,8 +6,26 @@
 local myname, ns = ...
 
 local defaults = {macroHP = "#showtooltip\n%MACRO%", macroMP = "#showtooltip\n%MACRO%"}
-local ids, dirty = LibStub("tekIDmemo"), false
-local items, bests, allitems = ns.itemdb, ns.bests, ns.allitems
+local ids, bests, allitems, items, dirty = LibStub("tekIDmemo"), {}, {}, {}
+for i,v in pairs(ns) do items[i] = v end
+
+
+------------------------------
+--      Util Functions      --
+------------------------------
+
+local function TableStuffer(...)
+	local t = {}
+	for i=1,select("#", ...) do
+		local id, v = string.split(":", (select(i, ...)))
+		if id and id ~= "" then
+			t[tonumber(id)] = tonumber(v) or 0
+			allitems[tonumber(id)] = tonumber(v) or 0
+		end
+	end
+	return t
+end
+for i,v in pairs(items) do bests[i], items[i] = {}, TableStuffer(string.split("\n", v)) end
 
 
 -----------------------------
@@ -37,7 +55,7 @@ function Buffet:PLAYER_LOGIN()
 	self:RegisterEvent("PLAYER_LOGOUT")
 
 	self:RegisterEvent("PLAYER_REGEN_ENABLED")
-	self:RegisterEvent("BAG_UPDATE_DELAYED")
+	self:RegisterEvent("BAG_UPDATE")
 	self:RegisterEvent("PLAYER_LEVEL_UP")
 
 	self:Scan()
@@ -57,11 +75,11 @@ function Buffet:PLAYER_REGEN_ENABLED()
 end
 
 
-function Buffet:BAG_UPDATE_DELAYED()
+function Buffet:BAG_UPDATE()
 	dirty = true
 	if not InCombatLockdown() then self:Scan() end
 end
-Buffet.PLAYER_LEVEL_UP = Buffet.BAG_UPDATE_DELAYED
+Buffet.PLAYER_LEVEL_UP = Buffet.BAG_UPDATE
 
 
 function Buffet:Scan()
@@ -85,26 +103,24 @@ function Buffet:Scan()
 		end
 	end
 
-	local healthstone = GetItemCount(5512) > 0 and 5512 or nil
-
-	local food = bests.percfood.id or bests.food.id or healthstone or bests.hppot.id
-	local water = bests.percwater.id or bests.water.id or bests.mppot.id
-
-	self:Edit("AutoHP", self.db.macroHP, food, healthstone or bests.hppot.id, bests.bandage.id)
-	self:Edit("AutoMP", self.db.macroMP, water, bests.mppot.id)
-
+	self:Edit("AutoHP", self.db.macroHP, bests.conjfood.id or bests.percfood.id or bests.food.id or bests.hstone.id or bests.hppot.id, bests.hppot.id, bests.hstone.id, bests.bandage.id)
+	self:Edit("AutoMP", self.db.macroMP, bests.conjwater.id or bests.percwater.id or bests.water.id or bests.mstone.id or bests.mppot.id, bests.mppot.id, bests.mstone.id)
 	dirty = false
 end
 
 
-function Buffet:Edit(name, substring, food, pot, mod)
+function Buffet:Edit(name, substring, food, pot, stone, shift)
 	local macroid = GetMacroIndexByName(name)
 	if not macroid then return end
 
 	local body = "/use "
-	if mod then body = body .. "[mod,target=player] item:"..mod.."; " end
-	if pot then body = body .. "[combat] item:"..pot.."; " end
-	body = body.."item:"..(food or "6948")
+	if shift then body = body .. "[mod:shift,target=player] item:"..shift.."; " end
+	if (pot and not stone) or (stone and not pot) then body = body .. "[combat] item:"..(pot or stone).."; " end
+	body = body .. (pot and stone and "[nocombat] " or "").."item:"..(food or "6948")
+
+	if pot and stone then body = body .. "\n/castsequence [combat,nomod] reset="..(stone == 22044 and "120/" or "").."combat item:"..stone..", item:"..pot end
 
 	EditMacro(macroid, name, "INV_Misc_QuestionMark", substring:gsub("%%MACRO%%", body), 1)
 end
+
+
